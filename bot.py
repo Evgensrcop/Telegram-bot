@@ -1,6 +1,7 @@
 import logging
 import aiogram
 import asyncio
+import sys
 from app import handlers
 from app.handlers import common
 
@@ -16,6 +17,7 @@ from aiogram import Bot, Dispatcher, F, Router
 from aiogram.dispatcher.fsm.context import FSMContext
 from aiogram.dispatcher.fsm.state import State, StatesGroup
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove
+
 logger = logging.getLogger('__main__')
 
 available_models_sizes = ["Маленькая","Средняя","Большая"]
@@ -26,30 +28,51 @@ available_models_nunbers = [1, 2, 3, 4, 5, 6]
 router = Router()
 
 class OrderModel(StatesGroup):
-    waiting_for_order_type = State()
-    waiting_for_models_number = State()
-    waiting_file = State()
-    waiting_for_models_size = State()
-    waiting_for_models_material = State()
-    waiting_for_location = State()
+    start = State()
+    order_type = State()
+    models_number = State()
+    file = State()
+    models_size = State()
+    models_material = State()
+    location = State()
 
 
 @router.message(commands={"start"})
 async def cmd_start(message: Message, state: FSMContext) -> None:
-    await state.set_state(OrderModel.waiting_for_order_type)
+    await state.set_state(OrderModel.start)
+    await message.answer("Начнем?")
+
+@router.message(OrderModel.start, F.text.casefold() == "да")
+async def process_order(message: Message, state: FSMContext) -> None:
+    await state.set_state(OrderModel.order_type)
     await message.answer(
         f"Модель из библиотеки или на заказ?",
         reply_markup=ReplyKeyboardMarkup(
             keyboard=[
                 [
-                    KeyboardButton(text="Из библиотеки"),
-                    KeyboardButton(text="На заказ"),
+                    KeyboardButton(text="из библиотеки"),
+                    KeyboardButton(text="на заказ"),
                 ]
             ],
             resize_keyboard=True,
         ),
     )
-    
+
+@router.message(OrderModel.order_type, F.text.casefold() == "из библиотеки")
+async def cmd_start(message: Message, state: FSMContext) -> None:
+    await state.set_state(OrderModel.models_number)
+    await message.answer("Введите номер модели.")
+
+@router.message(OrderModel.order_type, F.text.casefold() == "на заказ")
+async def process_order(message: Message, state: FSMContext) -> None:
+    await state.set_state(OrderModel.file)
+
+    await message.answer(
+        "Загрузите файл с моделью в любом формате из предложенных: \n.stl \n.obj \n.amf",
+        reply_markup=ReplyKeyboardRemove(),
+        #Загрузка файла
+    )
+
 @router.message(commands={"cancel"})
 @router.message(F.text.casefold() == "cancel")
 async def cancel_handler(message: Message, state: FSMContext) -> None:
@@ -63,26 +86,36 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
         reply_markup=ReplyKeyboardRemove(),
     )
 
-@router.message(OrderModel.waiting_for_models_number, F.text.casefold() == "Из библиотеки")
-async def process_lib(message: Message, state: FSMContext) -> None:
-    await state.set_state(OrderModel.waiting_for_models_size)
 
-    await message.reply(
-        "Выберите размер модели",
+
+
+@router.message(OrderModel.file)
+async def process_order(message: Message, state: FSMContext) -> None:
+    await state.set_state(OrderModel.models_size)
+
+    await message.answer(
+        "Введите номер модели из библиотеки.",
         reply_markup=ReplyKeyboardRemove(),
+        #Загрузка файла
     )
 
-@router.message(OrderModel.waiting_file, F.text.casefold() == "На заказ")
+@router.message(OrderModel.order_type, F.text.casefold() == "На заказ")
 async def process_order(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    await state.clear()
+    await state.set_state(OrderModel.file)
+
     await message.answer(
         "Загрузите файл с моделью в любом формате из предложенных: \n.stl \n.obj \n.amf",
         reply_markup=ReplyKeyboardRemove(),
         #Загрузка файла
     )
-    
-# Настройка логирования в stdout
+
+
+
+
+
+
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -96,21 +129,21 @@ async def set_commands(bot: Bot):
     await bot.set_my_commands(commands)
 
 # Парсинг файла конфигурации
-config = configparser.ConfigParser() 
-config.read("config/bot.ini") 
-    
+config = configparser.ConfigParser()
+config.read("config/bot.ini")
+
 ####################################################################################################
 
-bot = Bot(token=config["Token"]["token"])
-dp = Dispatcher(bot)
+
+#logger.error("Starting bot")
+
+async def main():
+    bot = Bot(token=config["Token"]["token"])
+    dp = Dispatcher()
+    dp.include_router(router)
+    await dp.start_polling(bot)
 
 
-logger.error("Starting bot")
-
-# Установка команд бота
-set_commands(bot)
-
-if __name__ == '__main__':
-   asyncio.get_running_loop(bot)
-
-
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    asyncio.run(main())
