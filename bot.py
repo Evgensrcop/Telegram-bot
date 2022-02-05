@@ -21,7 +21,7 @@ from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, ReplyKey
 logger = logging.getLogger('__main__')
 
 available_models_sizes = ["Маленькая","Средняя","Большая"]
-available_order_types = ["На заказ", "Из библиотеки"]
+available_order_types = ["на заказ", "из библиотеки"]
 available_materials_types = ["Под дерево","Пластик"]
 available_models_nunbers = [1, 2, 3, 4, 5, 6]
 
@@ -37,11 +37,11 @@ class OrderModel(StatesGroup):
     location = State()
 
 
-@router.message(commands={"start"})
+@router.message(commands = {"start"})
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.set_state(OrderModel.start)
     await message.answer("Начнем?")
-
+    
 @router.message(OrderModel.start, F.text.casefold() == "да")
 async def process_order(message: Message, state: FSMContext) -> None:
     await state.set_state(OrderModel.order_type)
@@ -58,12 +58,13 @@ async def process_order(message: Message, state: FSMContext) -> None:
         ),
     )
 
-@router.message(OrderModel.order_type, F.text.casefold() == "из библиотеки")
+@router.message(OrderModel.order_type, F.text.casefold() == available_order_types[1])
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.set_state(OrderModel.models_number)
     await message.answer("Введите номер модели.")
 
-@router.message(OrderModel.order_type, F.text.casefold() == "на заказ")
+
+@router.message(OrderModel.order_type, F.text.casefold() == available_order_types[0])
 async def process_order(message: Message, state: FSMContext) -> None:
     await state.set_state(OrderModel.file)
 
@@ -73,7 +74,7 @@ async def process_order(message: Message, state: FSMContext) -> None:
         #Загрузка файла
     )
 
-@router.message(commands={"cancel"})
+@router.message(commands = {"cancel"})
 @router.message(F.text.casefold() == "cancel")
 async def cancel_handler(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
@@ -85,9 +86,6 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
         "Cancelled.",
         reply_markup=ReplyKeyboardRemove(),
     )
-
-
-
 
 @router.message(OrderModel.file)
 async def process_order(message: Message, state: FSMContext) -> None:
