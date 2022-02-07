@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import aiogram
 import asyncio
@@ -41,7 +42,7 @@ class OrderModel(StatesGroup):
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.set_state(OrderModel.start)
     await message.answer("Начнем?")
-    
+
 @router.message(OrderModel.start, F.text.casefold() == "да")
 async def process_order(message: Message, state: FSMContext) -> None:
     await state.set_state(OrderModel.order_type)
